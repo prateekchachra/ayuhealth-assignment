@@ -52,7 +52,7 @@ class AppointmentScreen extends Component {
             <ScrollView style={styles.container}>
               <Text style={styles.headerStyle}>Pending Appointments: </Text>
               
-              <FlatList
+            {patientsList.length > 0 ?   <FlatList
             data={patientsList}
             keyExtractor={item => item.id}
             contentContainerStyle={{flexGrow: 1}}
@@ -60,11 +60,13 @@ class AppointmentScreen extends Component {
             
             <TouchableOpacity
             activeOpacity={1}
-            onPress={() => Actions.push('video', {patient: item})}>
+            onPress={() => {
+                this.setState({patientsList: patientsList.filter(patient => patient.id !== item.id)})
+                Actions.push('video', {patient: item})}}>
             <AppointmentCard patient={item} />
             </TouchableOpacity>
             )}
-        />
+        /> : (<Text style={styles.textStyle}>You have no pending appointments. Come back later.</Text>)}
                </ScrollView>
         );
     }
@@ -81,7 +83,12 @@ const styles = StyleSheet.create({
         marginVertical: 24,
         marginLeft: 24,
         fontWeight: 'bold'
-    }
+    },
+     textStyle: {
+        marginVertical: 24,
+        marginLeft: 24,
+        fontSize: 18,
+     }
 });
 
 //make this component available to the app

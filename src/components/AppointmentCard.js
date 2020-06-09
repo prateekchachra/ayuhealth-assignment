@@ -11,7 +11,8 @@ class AppointmentCard extends Component {
 
         return (
             <View style={styles.container}>
-                <Icon name='doctor' size={24} color='#fff'/>
+                <Icon name='doctor' size={24} color='#fff' style={{
+                marginBottom: 16}}/>
                 <Text style={styles.nameStyle}>Patient Name: {patient.patientName}</Text>
                 <Text style={styles.typeStyle}>Consultation Type: {patient.consultationType}</Text>
             </View>

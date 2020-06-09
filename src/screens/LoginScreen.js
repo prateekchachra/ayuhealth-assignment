@@ -2,6 +2,8 @@
 import React, { Component } from 'react';
 import { KeyboardAvoidingView, Text, TextInput, StyleSheet, Dimensions, Platform} from 'react-native';
 import AyuButton from '../components/AyuButton'
+import {connect} from 'react-redux'
+import MainActions from '../redux/reducer';
 import {Actions} from 'react-native-router-flux'
 const {width, height} = Dimensions.get('window')
 // create a component
@@ -10,12 +12,21 @@ class LoginScreen extends Component {
 
     constructor(props){
         super(props)
+
+        const {main} = props;
+
+        if(main.name && main.name !== ''){
+            Actions.refresh()
+            Actions.appointments();
+            
+
+        }
+        
         this.state={
-            name: '',
+            name: main.name ? main.name : '',
             errors: {}
         }
     }
-
     onNameSubmit = () => {
         const {name, errors} = this.state;
         
@@ -26,7 +37,7 @@ class LoginScreen extends Component {
             }
 
             if(Object.keys(errors).length === 0){
-                // this.props.saveName(name);
+                this.props.saveName(name);
                 Actions.appointments();
             }
             else {
@@ -87,5 +98,8 @@ const styles = StyleSheet.create({
       }
 });
 
+const mapStateToProps = ({main}) => ({
+    main
+})
 //make this component available to the app
-export default LoginScreen;
+export default connect(mapStateToProps, {saveName: MainActions.saveName})(LoginScreen);

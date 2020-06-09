@@ -1,45 +1,45 @@
 //import liraries
 import React, { Component } from 'react';
-import { View, NativeModules, ScrollView, Text, TouchableOpacity, Platform } from 'react-native';
-import { RtcEngine, AgoraView } from 'react-native-agora';
+import { View, Dimensions, Text, StyleSheet, Platform } from 'react-native';
+import RtcEngine, { RtcLocalView, RtcRemoteView } from 'react-native-agora';
 import {agoraAppId} from '../utils/config'
+const {width, height} = Dimensions.get('window')
+
+
+let LocalView = RtcLocalView.SurfaceView;
+let RemoteView = RtcRemoteView.SurfaceView;
+let engine;
+
+
 // create a component
 
-
-const { Agora } = NativeModules;            //Define Agora object as a native module
-
-const {
-  FPS30,
-  AudioProfileDefault,
-  AudioScenarioDefault,
-  Adaptative,
-} = Agora;                                  //Set defaults for Stream
-
-const config = {                            //Setting config of the app
-  appid: agoraAppId,               //Enter the App ID generated from the Agora Website
-  channelProfile: 0,                        //Set channel profile as 0 for RTC
-  videoEncoderConfig: {                     //Set Video feed encoder settings
-    width: 720,
-    height: 1080,
-    bitrate: 1,
-    frameRate: FPS30,
-    orientationMode: Adaptative,
-  },
-  audioProfile: AudioProfileDefault,
-  audioScenario: AudioScenarioDefault,
-};
+// const config = {                            //Setting config of the app
+//   appid: agoraAppId,               //Enter the App ID generated from the Agora Website
+//   channelProfile: 0,                        //Set channel profile as 0 for RTC
+//   videoEncoderConfig: {                     //Set Video feed encoder settings
+//     width: 720,
+//     height: 1080,
+//     bitrate: 1,
+//     frameRate: FPS30,
+//     orientationMode: Adaptative,
+//   },
+//   audioProfile: AudioProfileDefault,
+//   audioScenario: AudioScenarioDefault,
+// };
 
 
 class VideoScreen extends Component {
 
     constructor(props) {
         super(props);
+        const {patient} = props;
+        const {id, patientName} = patient;
         this.state = {
-          peerIds: [],                                       //Array for storing connected peers
-          uid: Math.floor(Math.random() * 100),              //Generate a UID for local user
-          appid: config.appid,                               
-          channelName: 'channel-x',                        //Channel Name for the current session
-          joinSucceed: false,                                //State variable for storing success
+          peerIds: [],            //Generate a UID for local user
+          appid: agoraAppId,                               
+          channelName: 'appointment-' + id,                        //Channel Name for the current session
+          joinSucceed: false,
+          patientName                                //State variable for storing success
         };
         if (Platform.OS === 'android') {                    //Request required permissions from Android
           this.requestCameraAndAudioPermission().then(_ => {
@@ -69,54 +69,68 @@ class VideoScreen extends Component {
         }
     }
 
+    startCall = () => {
+      this.setState({ joinSucceed: true }); //Set state variable to true
+      engine.joinChannel(null, this.state.channelName, null, 0);  //Join Channel using null token and channel name
+    }
+  
+    /**
+    * @name endCall
+    * @description Function to end the call
+    */
+    endCall = () => {
+      engine.leaveChannel();
+      this.setState({ peerIds: [], joinSucceed: false });
+    }
+
     componentDidMount() {
-        RtcEngine.on('userJoined', (data) => {
-          const { peerIds } = this.state;                   //Get currrent peer IDs
-          if (peerIds.indexOf(data.uid) === -1) {           //If new user has joined
-            this.setState({
-              peerIds: [...peerIds, data.uid],              //add peer ID to state array
-            });
+      let self = this;
+      /**
+      * @name init
+      * @description Function to initialize the Rtc Engine, attach event listeners and actions
+      */
+      async function init() {
+        engine = await RtcEngine.create(self.state.appid);
+        engine.enableVideo();
+  
+        engine.addListener('UserJoined', (data) => {          //If user joins the channel
+          const { peerIds } = self.state;                     //Get currrent peer IDs
+          if (peerIds.indexOf(data) === -1) {                 //If new user
+            self.setState({ peerIds: [...peerIds, data] });   //add peer ID to state array
           }
         });
-        RtcEngine.on('userOffline', (data) => {             //If user leaves
-          this.setState({
-            peerIds: this.state.peerIds.filter(uid => uid !== data.uid), //remove peer ID from state array
+  
+        engine.addListener('UserOffline', (data) => {                 //If user leaves
+          self.setState({
+            peerIds: self.state.peerIds.filter(uid => uid !== data), //remove peer ID from state array
           });
         });
-        RtcEngine.on('joinChannelSuccess', (data) => {                   //If Local user joins RTC channel
-          RtcEngine.startPreview();                                      //Start RTC preview
-          this.setState({
-            joinSucceed: true,                                           //Set state variable to true
-          });
-        });
-        RtcEngine.init(config);                                         //Initialize the RTC engine
-      }
-
-      startCall = () => {
-        RtcEngine.joinChannel(this.state.channelName, this.state.uid);  //Join Channel
-        RtcEngine.enableAudio();                                        //Enable the audio
-      }
-      /**
-      * @name endCall
-      * @description Function to end the call
-      */
-      endCall = () => {
-        RtcEngine.leaveChannel();
-        this.setState({
-          peerIds: [],
-          joinSucceed: false,
+  
+        engine.addListener('JoinChannelSuccess', (data) => {          //If Local user joins RTC channel
+          self.setState({ joinSucceed: true });                       //Set state variable to true
         });
       }
+      init();
+    }
 
     render() {
 
-        const {peerIds} = this.state;
+        const {peerIds, channelName, patientName} = this.state;
         return (
-            <View style={styles.halfViewRow}>
-            <AgoraView style={styles.half}
-              remoteUid={this.state.peerIds[0]} mode={1} />
-            <AgoraView style={styles.half}
-              remoteUid={this.state.peerIds[1]} mode={1} />
+            <View style={styles.container}>
+              <View>
+              <Text style={styles.headerStyle}>{patientName}</Text>
+          <RemoteView style={styles.videoStyle}
+              uid={peerIds[0]} renderMode={1} />
+              </View>
+              <View>
+               <Text style={styles.headerStyle}>Doctor</Text>
+                 <LocalView style={styles.videoStyle}               //view for local videofeed
+                    channelId={channelName} renderMode={1} zOrderMediaOverlay={true} />
+            </View>
+
+
+            
           </View>
         );
     }
@@ -127,7 +141,19 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+        flexDirection: 'row',
     },
+    videoStyle: {
+      width: width/2,
+      height: height/2
+    },
+    headerStyle: {
+      fontSize: 18,
+      marginVertical: 16,
+      alignSelf: 'center',
+      fontWeight: 'bold'
+    }
+
 });
 
 //make this component available to the app
